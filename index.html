@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>家庭网络卡顿的排查顺序</title>
+<meta name="description" content="网络排查 的实用经验：包含具体步骤、数字参考与常见错误，约 2000 字。">
+<meta name="keywords" content="网络排查,步骤,实用经验,步骤">
+<link rel="canonical" href="">
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "Article", "headline": "家庭网络卡顿的排查顺序", "description": "网络排查 的实用经验整理，包含具体做法与常见错误。", "author": {"@type": "Person", "name": "编辑部"}, "datePublished": "2026-11-14", "inLanguage": "zh-CN"}, {"@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "问：重启路由器真的有用吗？", "acceptedAnswer": {"@type": "Answer", "text": "有用但要看场景。它能清空 NAT 会话表、释放内存碎片，对会话耗尽和缓存异常的有效率约 60%。但物理断线、DNS 污染、带宽拥塞重启无效，反而会丢失现场。建议重启前先执行 ping 网关和 ping 公网 IP，记录结果再断电 30 秒。"}}, {"@type": "Question", "name": "问：能上微信但打不开网页，是什么原因？", "acceptedAnswer": {"@type": "Answer", "text": "90% 是 DNS 或代理问题。微信使用自有长连接和 IP 直连，绕过 DNS。先 ping 223.5.5.5 确认连通，再 nslookup 检查解析，最后查看系统代理设置是否残留。若浏览器报代理错误，关闭代理或改为“直连”即可恢复。"}}, {"@type": "Question", "name": "问：多久该换一次光猫或路由器？", "acceptedAnswer": {"@type": "Answer", "text": "家用设备建议 4 至 6 年更换，企业级 3 至 5 年。出现以下 3 种情况应提前更换：月均重启超过 4 次、满负荷运行温度超过 70℃、Wi-Fi 5 设备在 500 Mbps 宽带下测速长期低于 200 Mbps。更换成本家用 200 至 800 元，企业级 1000 至 5000 元，比反复排障的时间成本更低。"}}]}]}</script>
+<style>
+body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;max-width:820px;margin:40px auto;padding:0 20px;line-height:1.9;color:#1f2328}
+h1{font-size:28px;line-height:1.4}h2{font-size:21px;margin-top:34px;border-left:4px solid #0b62d6;padding-left:10px}
+h3{font-size:17px;margin-top:22px}ul,ol{padding-left:24px}a{color:#0b62d6;text-decoration:none}a:hover{text-decoration:underline}
+.toc{background:#f6f8fa;border:1px solid #e5e7eb;padding:12px 18px;border-radius:8px;font-size:14px}
+footer{margin-top:44px;border-top:1px solid #eee;padding-top:16px;font-size:14px;color:#57606a}
+</style>
+</head>
+<body>
+<h1>家庭网络卡顿的排查顺序</h1>
+<div class="toc"><strong>目录</strong><br>一、问题与目标　二、具体做法　三、常见错误　四、效果判断　五、常见问题</div>
+<h2>问题：断网不是玄学，排查要讲顺序</h2>
+<p>办公室突然打不开网页、家里视频卡成幻灯片、服务器 SSH 连不上，多数人第一反应是“重启路由器”。实际网络故障里，约 70% 的问题集中在物理连接、IP 配置、DNS 解析和路由策略这 4 层。盲目重启可能掩盖真实原因，反复插拔还可能让故障现场消失。下面按步骤拆解一套可复用的排查流程，每步给出判断标准和常见错误，帮你把平均 30 分钟的排障时间压缩到 5 至 10 分钟。</p>
+
+<h2>第一步：确认故障范围与物理链路（1 至 3 分钟）</h2>
+<p><strong>步骤 1：</strong>先问 3 个问题——是单台设备还是全部设备？是有线还是无线？是全部网站还是特定网站？单台故障优先查本机，全部故障优先查出口。用手机流量访问同一服务，若正常，说明问题在本地网络侧。</p>
+<p><strong>步骤 2：</strong>检查物理连接。网线水晶头是否松动、交换机端口指示灯是否常亮或闪烁、光猫 PON 灯是否绿色常亮。光纤用户注意 LOS 灯变红代表线路中断，此时任何重启都无效，应直接报修。无线用户查看信号强度，低于 -75 dBm 时丢包率可能超过 10%。</p>
+<p><strong>步骤 3：</strong>用 <strong>ping 网关</strong> 做第一跳测试。Windows 执行 <strong>ipconfig</strong> 找默认网关，再 <strong>ping 网关地址 -n 20</strong>。延迟应小于 5 ms、丢包 0。若网关不通，问题在二层链路或本机 IP 配置；若网关通但外网不通，进入第二步。</p>
+<ul>
+<li>常见错误 1：只 ping 域名不 ping IP，把 DNS 故障误判为断网。</li>
+<li>常见错误 2：无线环境忽略信道干扰，2.4 GHz 在密集办公区干扰可使速率下降 50% 以上。</li>
+<li>常见错误 3：光猫与路由器网段冲突（同为 192.168.1.0/24），导致双重 NAT 和间歇断流。</li>
+</ul>
+
+<h2>第二步：检查 IP 配置与 DNS 解析（2 至 5 分钟）</h2>
+<p><strong>步骤 4：</strong>查看本机地址。执行 <strong>ipconfig /all</strong>（Windows）或 <strong>ip addr</strong>（Linux/macOS）。若出现 169.254.x.x，说明 DHCP 未获取到地址，检查 DHCP 池是否耗尽（常见于 254 个地址的小型网络，接入设备超 200 台时高发）。手动配置静态 IP 时，网关和掩码错一位就会整段不通。</p>
+<p><strong>步骤 5：</strong>分离 DNS 与连通性问题。<strong>ping 223.5.5.5</strong> 通、<strong>ping 域名</strong> 不通，基本锁定 DNS。将 DNS 临时改为 223.5.5.5 或 119.29.29.29 测试。企业内网若依赖内部域名，改公共 DNS 会导致 OA、打印服务器无法访问，需先确认解析记录。</p>
+<p><strong>步骤 6：</strong>用 <strong>nslookup 域名 8.8.8.8</strong> 对比本地 DNS 结果。两者不一致说明存在 DNS 劫持或缓存污染，执行 <strong>ipconfig /flushdns</strong> 清除缓存。TTL 设置过短（如 60 秒）会增加解析失败概率，过长（86400 秒）则故障切换慢，建议 300 至 600 秒。</p>
+<ul>
+<li>常见错误 4：同时启用有线与无线，路由表优先级混乱，表现为“能上微信不能开网页”。</li>
+<li>常见错误 5：代理软件残留设置，浏览器走 127.0.0.1:7890 而代理已退出，报 ERR_PROXY_CONNECTION_FAILED。</li>
+<li>常见错误 6：IPv6 已获取但上游无路由，系统优先走 IPv6 造成 10 至 30 秒超时后才回落 IPv4。</li>
+</ul>
+
+<h2>第三步：定位路由、丢包与出口瓶颈（5 至 10 分钟）</h2>
+<p><strong>步骤 7：</strong>做路径追踪。<strong>tracert 目标IP</strong>（Windows）或 <strong>traceroute</strong>（Linux/macOS）。观察在哪一跳开始出现 <strong>*</strong> 或延迟从 10 ms 跳到 200 ms 以上。连续 3 跳超时通常是运营商侧限制 ICMP，不代表故障；某一跳后全部超时才是断点。</p>
+<p><strong>步骤 8：</strong>量化丢包与抖动。<strong>ping 目标 -n 100</strong>，丢包率超过 1% 即可感知视频卡顿，超过 5% 语音通话基本不可用。抖动（延迟标准差）大于 30 ms 时，实时会议会出现断续。企业专线 SLA 通常承诺丢包低于 0.1%、时延低于 30 ms，超出即可依据合同（月费 2000 至 20000 元区间）发起工单。</p>
+<p><strong>步骤 9：</strong>排查出口带宽与连接数。登录路由器查看 WAN 口流量，若持续接近签约带宽的 90%，属于拥塞而非故障。同时检查 NAT 会话数，家用路由器 5000 至 10000 条会话打满后新连接会被丢弃，表现为“网速正常但打不开新页面”，重启可临时恢复。</p>
+<ul>
+<li>常见错误 7：用无线测速判断宽带故障，5 GHz 隔一堵墙速率可能衰减 40%。</li>
+<li>常见错误 8：MTU 不匹配导致大包丢失，表现为小网页正常、大文件传输卡死，可将 MTU 从 1500 逐步降到 1400 测试。</li>
+<li>常见错误 9：只看平均延迟不看峰值，游戏和视频会议对 99 分位延迟更敏感。</li>
+</ul>
+
+<h2>第四步：验证修复并留档（2 至 3 分钟）</h2>
+<p><strong>步骤 10：</strong>按“物理—IP—DNS—路由—应用”顺序复测 5 项指标：网关 ping、公网 IP ping、域名解析、目标端口连通性（<strong>telnet 目标 443</strong>）、实际业务访问。全部通过才算闭环，单项通过不代表恢复。</p>
+<p><strong>步骤 11：</strong>记录故障时间、影响范围、根因和处置动作。建议保留 30 天日志，重复故障（同一位置月内 2 次以上）应升级为线路改造或设备更换，而非反复重启。一次典型的上门排障费用在 100 至 500 元，提前留档能省下重复支出。</p>
+
+<h2>常见问题</h2>
+<h3>问：重启路由器真的有用吗？</h3>
+<p>有用但要看场景。它能清空 NAT 会话表、释放内存碎片，对会话耗尽和缓存异常的有效率约 60%。但物理断线、DNS 污染、带宽拥塞重启无效，反而会丢失现场。建议重启前先执行 ping 网关和 ping 公网 IP，记录结果再断电 30 秒。</p>
+<h3>问：能上微信但打不开网页，是什么原因？</h3>
+<p>90% 是 DNS 或代理问题。微信使用自有长连接和 IP 直连，绕过 DNS。先 <strong>ping 223.5.5.5</strong> 确认连通，再 <strong>nslookup</strong> 检查解析，最后查看系统代理设置是否残留。若浏览器报代理错误，关闭代理或改为“直连”即可恢复。</p>
+<h3>问：多久该换一次光猫或路由器？</h3>
+<p>家用设备建议 4 至 6 年更换，企业级 3 至 5 年。出现以下 3 种情况应提前更换：月均重启超过 4 次、满负荷运行温度超过 70℃、Wi-Fi 5 设备在 500 Mbps 宽带下测速长期低于 200 Mbps。更换成本家用 200 至 800 元，企业级 1000 至 5000 元，比反复排障的时间成本更低。</p>
+<h2>参考资料</h2>
+<ul>
+<li><a href="https://zhibobang.com.cn/">zhibobang.com.cn</a></li>
+<li><a href="https://lanqiukong.com.cn/">lanqiukong.com.cn</a></li>
+</ul>
+<footer>本文为经验整理，数据与方法随实践持续更新。</footer>
+</body>
+</html>
